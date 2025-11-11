@@ -1,5 +1,6 @@
 #!/bin/bash
 #
+#  THIS SCRIPT IS NOT MINE ( CADEN ROBERTS ) IT WAS USED FROM: https://github.com/NrgXnat/oasis-scripts/blob/master/download_scans/download_oasis_scans.sh
 #================================================================
 # download_oasis_scans.sh
 #================================================================
