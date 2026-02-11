@@ -1,118 +1,102 @@
-# ClinImCL: Self-Supervised Contrastive Learning for Longitudinal Clinical Imaging Analysis
+# ClinImCL
 
-ClinImCL is a self-supervised learning framework designed to analyze longitudinal brain MRI scans. It leverages temporal consistency in longitudinal data to learn stable embeddings without requiring manual annotations. This repository contains the code and scripts necessary to preprocess data, train the model, and evaluate the results.
+Distributed self-supervised representation learning pipeline for longitudinal MRI analysis.
 
-## Table of Contents
-1. [Overview](#overview)
-2. [Folder Structure](#folder-structure)
-3. [Installation](#installation)
-4. [Reproducing Results](#reproducing-results)
-5. [File Descriptions](#file-descriptions)
-6. [Citations](#citations)
+## Purpose
 
----
+ClinImCL trains a 3D convolutional encoder on longitudinal brain MRI scans using temporal contrastive learning. Same-subject scans across time points form positive pairs; the model learns stable embeddings without manual annotations. The pipeline processes 3,000+ T1-weighted scans from the OASIS-3 dataset on GPU clusters using MONAI preprocessing and PyTorch training infrastructure.
 
-## Overview
+## Architecture
 
-ClinImCL uses a lightweight 3D convolutional neural network (CNN) to process longitudinal MRI scans. The framework is designed to:
-- Preprocess MRI scans to ensure consistency across datasets.
-- Train a self-supervised model using temporal contrastive learning.
-- Evaluate embeddings using dimensionality reduction techniques (PCA, UMAP, t-SNE) and linear probing.
+```
+OASIS-3 dataset
+    │
+    ├─ data_download.sh / download_oasis_scans.sh
+    │  (bulk download via XNAT API)
+    │
+    ▼
+preprocess_t1w.py
+    │  Intensity normalization, reorientation,
+    │  cropping, resizing via MONAI transforms
+    │
+    ▼
+Splits_Creation.py
+    │  Subject-level train/val/test splits
+    │  (no subject leaks across splits)
+    │
+    ▼
+model_train.ipynb
+    │  3D CNN encoder + temporal contrastive loss
+    │  GPU-accelerated training (A100)
+    │
+    ▼
+Testing.py
+    │  Evaluate on held-out test set
+    │
+    ├─ Linear_Probe.py         → linear classifier on frozen embeddings
+    ├─ PCA_Visualization.py    → PCA embedding projections
+    ├─ TSNE_visualization.py   → t-SNE embedding projections
+    └─ Scan_Distribution.py    → dataset statistics
+```
 
-The framework was tested on the OASIS-3 dataset, which contains longitudinal MRI scans of subjects with varying stages of cognitive decline.
+## Key design decisions
 
----
+| Decision | Tradeoff | Rationale |
+|----------|----------|-----------|
+| Temporal contrastive loss (same-subject pairs) | Requires longitudinal data; not applicable to cross-sectional datasets | Exploits temporal consistency for label-free learning; same brain across time provides natural positive pairs |
+| 3D CNN over slice-based 2D models | Higher memory cost per sample | Captures volumetric spatial relationships critical for structural brain analysis |
+| Subject-level split strategy | Reduces effective training set size | Prevents data leakage: a subject's scans appear in exactly one split |
+| MONAI preprocessing | Adds dependency | Standardized medical imaging transforms with GPU acceleration; handles orientation, spacing, and intensity normalization consistently |
 
-## Folder Structure
+## Evaluation
 
-The repository contains the following key files:
+| Metric | Definition |
+|--------|-----------|
+| Embedding stability | Cosine similarity between embeddings of same-subject scans across time points |
+| Representation quality | Linear probe accuracy on CDR (Clinical Dementia Rating) classification |
+| Cluster separation | Visual assessment via PCA, t-SNE, and UMAP projections colored by diagnosis |
+| Downstream transfer | Accuracy of frozen-embedding classifiers on disease progression tasks |
+
+## Repo structure
 
 ```
 ClinImCL/
-├── data_download.sh          # Script to download the OASIS-3 dataset
-├── download_oasis_scans.sh   # Helper script for downloading specific scans
-├── Example_MRI_Slice.py      # Script to visualize example MRI slices
-├── Linear_Probe.py           # Script to evaluate embeddings using linear probing
-├── model_train.ipynb         # Jupyter notebook for training the ClinImCL model
-├── PCA_Visualization.py      # Script for PCA-based embedding visualization
-├── preprocess_t1w.py         # Preprocessing pipeline for T1-weighted MRI scans
-├── Preprocessing.py          # General preprocessing utilities
-├── Scan_Distribution.py      # Script to analyze scan distribution in the dataset
-├── Splits_Creation.py        # Script to create training/validation/test splits
-├── Testing.py                # Script to evaluate the model on test data
-├── TSNE_visualization.py     # Script for t-SNE-based embedding visualization
-└── README.md                 # Project documentation
+├── data_download.sh           Bulk OASIS-3 download
+├── download_oasis_scans.sh    Per-scan download helper
+├── preprocess_t1w.py          T1-weighted MRI preprocessing (MONAI)
+├── Preprocessing.py           General preprocessing utilities
+├── Splits_Creation.py         Subject-level train/val/test splits
+├── model_train.ipynb          Training notebook (3D CNN + contrastive loss)
+├── Testing.py                 Test set evaluation
+├── Linear_Probe.py            Linear probing on frozen embeddings
+├── PCA_Visualization.py       PCA embedding visualization
+├── TSNE_visualization.py      t-SNE embedding visualization
+├── Scan_Distribution.py       Dataset distribution analysis
+├── Example_MRI_Slice.py       MRI slice visualization
+└── clinimcl.pdf               Technical report
 ```
 
----
+## Usage
 
-## Installation
+```bash
+# 1. Download OASIS-3 dataset
+./data_download.sh
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/cadenroberts/ClinImCL.git
-   cd ClinImCL
-   ```
+# 2. Preprocess T1-weighted scans
+python preprocess_t1w.py
 
-2. (Optional) Install MONAI for medical imaging preprocessing:
-   ```bash
-   pip install monai
-   ```
+# 3. Create subject-level splits
+python Splits_Creation.py
 
----
+# 4. Train (open model_train.ipynb, configure hyperparameters, execute cells)
 
-## Reproducing Results
+# 5. Evaluate
+python Testing.py
+python Linear_Probe.py
+python PCA_Visualization.py
+python TSNE_visualization.py
+```
 
-To reproduce the results from the paper, follow these steps:
+## License
 
-1. **Download the OASIS-3 Dataset**:
-   - Run `data_download.sh` to download the dataset.
-   - Use `download_oasis_scans.sh` to fetch specific scans.
-
-2. **Preprocess the Data**:
-   - Use `preprocess_t1w.py` to preprocess the MRI scans. This includes intensity normalization, reorientation, cropping, and resizing.
-
-3. **Train the Model**:
-   - Open `model_train.ipynb` and execute the cells to train the ClinImCL model. Training parameters (e.g., batch size, learning rate) can be adjusted in the notebook.
-
-4. **Evaluate the Model**:
-   - Use `Testing.py` to evaluate the trained model on the test set.
-   - Visualize embeddings using `PCA_Visualization.py` and `TSNE_visualization.py`.
-
-5. **Analyze Results**:
-   - Use `Linear_Probe.py` to assess the quality of embeddings for downstream tasks.
-   - Analyze scan distribution with `Scan_Distribution.py`.
-
----
-
-## File Descriptions
-
-### Data Handling
-- **`data_download.sh`**: Automates the download of the OASIS-3 dataset.
-- **`download_oasis_scans.sh`**: Helper script to download specific MRI scans.
-
-### Preprocessing
-- **`preprocess_t1w.py`**: Preprocesses T1-weighted MRI scans (normalization, cropping, resizing).
-- **`Preprocessing.py`**: Contains utility functions for preprocessing.
-
-### Training
-- **`model_train.ipynb`**: Jupyter notebook for training the ClinImCL model.
-
-### Evaluation
-- **`Testing.py`**: Evaluates the trained model on a held-out test set.
-- **`Linear_Probe.py`**: Evaluates embeddings using a linear classifier.
-- **`PCA_Visualization.py`**: Visualizes embeddings using PCA.
-- **`TSNE_visualization.py`**: Visualizes embeddings using t-SNE.
-
-### Analysis
-- **`Scan_Distribution.py`**: Analyzes the distribution of scans in the dataset.
-- **`Example_MRI_Slice.py`**: Visualizes example MRI slices.
-
-### Utilities
-- **`Splits_Creation.py`**: Creates training, validation, and test splits.
-
----
-
-## Citations
-
-If you use this code, please cite us.
+See repository for license terms.
