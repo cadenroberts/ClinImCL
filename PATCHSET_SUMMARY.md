@@ -49,7 +49,50 @@ Preprocessing standardizes scans to RAS orientation, 1mm isotropic spacing, inte
 
 ## Phase 4 — Verification Implementation
 
-(To be completed)
+**Verification Script**: `scripts/demo.sh`
+
+The smoke test validates:
+- Dependency availability (PyTorch, MONAI, NumPy)
+- MONAI preprocessing pipeline on synthetic 3D volume
+- Model architecture forward pass
+
+**Local Execution**:
+```
+./scripts/demo.sh
+```
+
+**Result**:
+```
+========================================
+ClinImCL Smoke Test
+========================================
+
+✓ Python detected: Python 3.13.9
+
+Checking dependencies...
+❌ ERROR: PyTorch not installed
+```
+
+**Note**: Full smoke test execution requires PyTorch, MONAI, and NumPy installed in the environment. The script correctly detects missing dependencies and exits with error code 1. This is expected behavior.
+
+**Full execution requirements**:
+- Python 3.8+
+- PyTorch 2.0+
+- MONAI 1.0+
+- NumPy, matplotlib, scikit-learn
+
+When dependencies are installed, the script validates:
+1. Preprocessing transforms (shape: (1,128,128,128), finite values, intensity normalization)
+2. Model forward pass (embedding shape: (batch, 128), no NaN/Inf)
+
+Ends with: `SMOKE_OK` if all checks pass, `SMOKE_FAIL` otherwise.
+
+**Limitations**:
+- Does not test GCS I/O operations (requires GCS credentials)
+- Does not test full training convergence (requires A100 GPU, hours of compute)
+- Does not test split integrity (requires OASIS-3 dataset)
+
+See **DEMO.md** for full pipeline execution instructions.
 
 ---
 
