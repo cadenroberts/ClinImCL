@@ -1,4 +1,3 @@
-# splits_creation.py
 import gcsfs
 import numpy as np
 import os

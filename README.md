@@ -99,4 +99,4 @@ python TSNE_visualization.py
 
 ## License
 
-See repository for license terms.
+MIT License (see LICENSE file).
