@@ -47,7 +47,7 @@ split -n l/8 oasis_mri_experiments.csv subset_
 for f in subset_*; do
   session=$(basename "$f")
   echo "Launching $session ..."
-  tmux new -d -s "$session" "bash ./download_oasis_scans.sh $f /data/OASIS3 ${NITRC_USER} ALL | tee /data/OASIS3/${session}.log"
+  tmux new -d -s "$session" "/bin/bash ./download_oasis_scans.sh $f /data/OASIS3 ${NITRC_USER} ALL | tee /data/OASIS3/${session}.log"
 done
 
 # When tmux sessions have finished downloads
