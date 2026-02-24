@@ -19,8 +19,8 @@ Google Cloud Storage.
 ├── download_oasis_scans.sh        # helper script (from oasis-scripts repo)
 ├── preprocess_t1w.py              # MONAI preprocessing of raw NIfTI files
 ├── model_train.ipynb              # interactive Colab notebook for training
-├── Linear_Probe.py                # script to train/evaluate a linear probe
-├── PCA_Visualization.py           # simple PCA plot of embeddings
+├── linear_probe.py                # script to train/evaluate a linear probe
+├── pca.py                         # simple PCA plot of embeddings
 ├── README.md                      # this file
 └── (others may be added as project evolves)
 ```
@@ -54,10 +54,10 @@ Workflow Overview
      demarcated by comments and environment variables.
 
 4. **Representation analysis**
-   - `Linear_Probe.py` downloads saved embeddings from the bucket,
+   - `linear_probe.py` downloads saved embeddings from the bucket,
      fits a logistic regression classifier, computes ROC/CM plots, and
      uploads the figures back to the bucket.
-   - `PCA_Visualization.py` fetches a subset of embeddings and produces a 2‑D
+   - `pca.py` fetches a subset of embeddings and produces a 2‑D
      PCA scatter plot to inspect embedding structure.
 
 
@@ -102,9 +102,9 @@ pip install torch monai gcsfs numpy scikit-learn matplotlib seaborn pandas tqdm
 
 4. Extending the pipeline
    - Add classification heads or downstream tasks by adapting
-     `Linear_Probe.py` or adding notebook cells after training.
+     `linear_probe.py` or adding notebook cells after training.
    - Further visualizations (t-SNE, UMAP) follow the pattern in
-     `PCA_Visualization.py`.
+     `pca.py`.
 
 
 Cohesion Across Files
@@ -116,7 +116,7 @@ Every script forms a stage in the end-to-end pipeline:
 - Downloaded raw data → preprocessed by `preprocess_t1w.py` → used by the
   notebook loader functions.
 - Embeddings produced by `model_train.ipynb` are consumed by the two analysis
-  scripts (`Linear_Probe.py`, `PCA_Visualization.py`) which respectively train a
+  scripts (`linear_probe.py`, `pca.py`) which respectively train a
   linear classifier and visualize the latent space.
 - Cloud storage (`gs://clinimcl-data`) serves as the central hub for data and
   checkpoints, ensuring the components remain loosely coupled and portable.
