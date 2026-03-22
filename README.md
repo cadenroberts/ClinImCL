@@ -1,6 +1,47 @@
 # ClinImCL
 
-Contrastive representation learning for longitudinal MRI.
+ClinImCL is a GPU-accelerated machine learning pipeline for longitudinal MRI representation learning using contrastive learning.
+
+The system processes OASIS-3 MRI data, constructs temporal embeddings via 3D CNN encoders, and evaluates representation quality across longitudinal patient scans.
+
+## System Overview
+
+ClinImCL operates as a structured ML pipeline:
+
+- **Data processing** — preprocesses longitudinal MRI scans into model-ready tensors
+- **Training** — learns representations using a 3D CNN contrastive learning framework
+- **Embedding generation** — produces latent representations across timepoints
+- **Evaluation** — analyzes embedding quality using downstream metrics and projections
+
+The system is designed for GPU-accelerated training and scalable processing of longitudinal medical imaging data.
+
+## Architecture
+
+```
+MRI Data (OASIS-3)
+        ↓
+Preprocessing Pipeline
+        ↓
+3D CNN Encoder (PyTorch)
+        ↓
+Contrastive Learning Objective
+        ↓
+Embedding Space
+        ↓
+Evaluation / Visualization
+```
+
+## Key Properties
+
+- GPU-accelerated 3D CNN training (PyTorch)
+- Longitudinal representation learning across time-series MRI data
+- Contrastive learning framework for embedding construction
+- End-to-end pipeline from preprocessing to evaluation
+- Designed for medical imaging workflows and structured datasets
+
+## Why This Matters
+
+Longitudinal medical imaging data presents challenges in capturing temporal structure and variability across scans. ClinImCL explores how contrastive learning can be applied to learn meaningful representations across time, enabling improved analysis of disease progression and patient trajectories.
 
 ## Repository Layout
 
