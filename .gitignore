@@ -6,7 +6,3 @@ __pycache__/
 *.pyd
 *.swp
 
-report.aux
-report.log
-report.out
-

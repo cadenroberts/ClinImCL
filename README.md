@@ -1,19 +1,19 @@
 # ClinImCL
 
-ClinImCL is a GPU-accelerated machine learning pipeline for longitudinal MRI representation learning using contrastive learning.
+ClinImCL is a GPU-accelerated machine learning pipeline for longitudinal MRI representation learning using contrastive 3D CNN encoders.
 
-The system processes OASIS-3 MRI data, constructs temporal embeddings via 3D CNN encoders, and evaluates representation quality across longitudinal patient scans.
+The system processes OASIS-3 MRI data, constructs temporal embeddings across patient timepoints, and evaluates representation quality under high-dimensional volumetric constraints.
 
 ## System Overview
 
-ClinImCL operates as a structured ML pipeline:
+ClinImCL operates as a GPU-accelerated ML pipeline:
 
-- **Data processing** — preprocesses longitudinal MRI scans into model-ready tensors
-- **Training** — learns representations using a 3D CNN contrastive learning framework
-- **Embedding generation** — produces latent representations across timepoints
-- **Evaluation** — analyzes embedding quality using downstream metrics and projections
+- Data processing — preprocesses longitudinal MRI scans into model-ready tensors
+- Training — learns representations using a contrastive 3D CNN encoder
+- Embedding generation — produces latent representations across timepoints
+- Evaluation — analyzes embedding quality using downstream metrics and projections
 
-The pipeline is designed for GPU-accelerated training and scalable processing of longitudinal medical imaging data.
+The system is designed for scalable training on high-dimensional volumetric data while managing memory, batching, and temporal alignment constraints.
 
 ## Architecture
 
@@ -36,7 +36,7 @@ Evaluation / Visualization
 - High memory requirements for 3D MRI volumes during GPU training
 - Limited batch sizes due to volumetric data dimensionality
 - Temporal alignment challenges across longitudinal scans
-- Dataset preprocessing cost for large-scale medical imaging data
+- Preprocessing overhead for large-scale medical imaging datasets
 
 ## Key Properties
 
@@ -48,7 +48,7 @@ Evaluation / Visualization
 
 ## Why This Matters
 
-Longitudinal medical imaging data presents challenges in capturing temporal structure and variability across scans. ClinImCL explores how contrastive learning can be applied to learn meaningful representations across time, enabling improved analysis of disease progression and patient trajectories.
+Longitudinal medical imaging data presents challenges in capturing temporal structure and variability across scans. ClinImCL explores how contrastive learning can be applied to learn meaningful representations across time, enabling improved analysis of disease progression and patient trajectories in real-world clinical data pipelines.
 
 ## Repository Layout
 
@@ -58,9 +58,7 @@ ClinImCL/
 ├── preprocess.py
 ├── model.ipynb
 ├── visualize.py
-├── report/
-│   ├── report.tex
-│   ├── report.pdf
+├── figures/
 │   ├── epoch1_projections.png
 │   ├── epoch20_projections.png
 │   ├── epoch40_projections.png
@@ -77,14 +75,11 @@ ClinImCL/
 ## Requirements
 
 - Python 3.11+
-- TeX Live with `pdflatex`
+- Install dependencies with `pip install -r requirements.txt`. For **GPU training**, install **PyTorch** for your CUDA version from [pytorch.org](https://pytorch.org/get-started/locally/) first, then install the rest of the requirements (the default `torch` from PyPI is often CPU-only).
 
 ## Standard Commands
 
-Use `make` targets for repeatable runs:
-
 ```bash
-make pdf
 make all
 make clean
 ```
@@ -97,10 +92,9 @@ make clean
   - preprocessed path `gs://clinimcl-data/OASIS3/preprocessed/`
   - checkpoint path `gs://clinimcl-data/checkpoints/`
 - `preprocess.py` handles MRI preprocessing.
-- `model.ipynb` and `visualize.py` are the main training and analysis paths.
+- **Training** is implemented in `model.ipynb` (GPU, GCS-backed tensors and checkpoints). **`visualize.py`** loads checkpoints for embedding plots, stability checks, and linear-probe metrics—it does not run the training loop.
+- **OASIS-3:** Imaging must be obtained and used under [OASIS](https://www.oasis-brains.org/) terms and any applicable agreements. This repository does **not** redistribute scans or patient data; it only documents pipeline code and static figure assets.
 
 ## Project Notes
 
-- Do not rename figure files without updating `report/report.tex`.
-- Use `make clean` after compiling to remove LaTeX temporary files.
-- Keep `report/report.pdf` aligned with `report/report.tex`.
+- Figure assets live under `figures/`; keep filenames stable if external docs reference them.
