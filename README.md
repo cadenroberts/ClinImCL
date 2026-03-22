@@ -13,11 +13,11 @@ ClinImCL operates as a structured ML pipeline:
 - **Embedding generation** — produces latent representations across timepoints
 - **Evaluation** — analyzes embedding quality using downstream metrics and projections
 
-The system is designed for GPU-accelerated training and scalable processing of longitudinal medical imaging data.
+The pipeline is designed for GPU-accelerated training and scalable processing of longitudinal medical imaging data.
 
 ## Architecture
 
-```
+```text
 MRI Data (OASIS-3)
         ↓
 Preprocessing Pipeline
@@ -30,6 +30,13 @@ Embedding Space
         ↓
 Evaluation / Visualization
 ```
+
+## System Constraints
+
+- High memory requirements for 3D MRI volumes during GPU training
+- Limited batch sizes due to volumetric data dimensionality
+- Temporal alignment challenges across longitudinal scans
+- Dataset preprocessing cost for large-scale medical imaging data
 
 ## Key Properties
 
