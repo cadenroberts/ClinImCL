@@ -10,16 +10,17 @@ ClinImCL/
 ├── preprocess.py
 ├── model.ipynb
 ├── visualize.py
-├── report.tex
-├── report.pdf
-├── epoch1_projections.png
-├── epoch20_projections.png
-├── epoch40_projections.png
-├── linearprobe_cm.png
-├── linearprobe_roc.png
-├── test_projections.png
-├── test_confusion.png
-├── oasisbrains.png
+├── report/
+│   ├── report.tex
+│   ├── report.pdf
+│   ├── epoch1_projections.png
+│   ├── epoch20_projections.png
+│   ├── epoch40_projections.png
+│   ├── linearprobe_cm.png
+│   ├── linearprobe_roc.png
+│   ├── test_projections.png
+│   ├── test_confusion.png
+│   └── oasisbrains.png
 ├── Makefile
 ├── requirements.txt
 └── README.md
@@ -52,6 +53,6 @@ make clean
 
 ## Project Notes
 
-- Do not rename figure files without updating `report.tex`.
+- Do not rename figure files without updating `report/report.tex`.
 - Use `make clean` after compiling to remove LaTeX temporary files.
-- Keep `report.pdf` aligned with `report.tex`.
+- Keep `report/report.pdf` aligned with `report/report.tex`.
