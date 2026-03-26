@@ -1,4 +1,3 @@
-import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -46,10 +45,10 @@ def info_nce(z1, z2, temp=0.07):
 
 def augment(x):
     x = x.clone()
-    if random.random() < 0.5:
-        x = torch.flip(x, dims=[random.choice([1, 2, 3])])
-    if random.random() < 0.3:
-        x = x * random.uniform(0.9, 1.1) + random.uniform(-0.1, 0.1)
-    if random.random() < 0.3:
-        x = x + torch.randn_like(x) * random.uniform(0.01, 0.05)
+    if torch.rand(1).item() < 0.5:
+        x = torch.flip(x, dims=[int(torch.randint(1, 4, (1,)).item())])
+    if torch.rand(1).item() < 0.3:
+        x = x * (0.9 + 0.2 * torch.rand(1).item()) + (-0.1 + 0.2 * torch.rand(1).item())
+    if torch.rand(1).item() < 0.3:
+        x = x + torch.randn_like(x) * (0.01 + 0.04 * torch.rand(1).item())
     return x.clamp(0.0, 1.0)
