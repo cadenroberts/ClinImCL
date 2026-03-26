@@ -13,7 +13,7 @@ Contrastive learning pipeline for longitudinal 3D MRI representation learning on
 | `download.sh` | OASIS-3 MRI downloader (NITRC auth, parallel via tmux) |
 | `Makefile` | `make all` validates figures; `make clean` removes caches, cookies, CSVs, and `visualizations/` |
 | `test_clinimcl.py` | Test suite: model shapes, L2 norm, InfoNCE loss, augmentation, visualization outputs, label loading, GCS mock, local pipeline, preprocessing e2e, download function tests, error paths |
-| `requirements.txt` | Python dependencies (PyTorch, MONAI, nibabel, sklearn, umap-learn, gcsfs, pytest) |
+| `requirements.txt` | Python dependencies (PyTorch, MONAI, nibabel, tqdm, numpy, pandas, matplotlib, seaborn, scikit-learn, umap-learn, gcsfs, pytest) |
 | `figures/` | 8 committed result PNGs (reference outputs from training runs) |
 | `.github/workflows/test.yml` | CI: runs pytest and figure validation on push/PR to main |
 
