@@ -1,8 +1,19 @@
 .DS_Store
 .venv/
+.cursor/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 *.swp
+.env
 
+# Generated data / artifacts
+.cookies-*.txt
+_tmp.csv
+oasis*.csv
+subset_*
+visualizations/
+*.pt
+*.pth
+*.npy

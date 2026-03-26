@@ -1,100 +1,65 @@
 # ClinImCL
 
-ClinImCL is a GPU-accelerated machine learning pipeline for longitudinal MRI representation learning using contrastive 3D CNN encoders.
+Contrastive learning pipeline for longitudinal 3D MRI representation learning on OASIS-3 data. Trains a 3D CNN encoder with InfoNCE loss over temporal scan pairs, producing embeddings evaluated via UMAP trajectories, PCA projections, and linear probe classification.
 
-The system processes OASIS-3 MRI data, constructs temporal embeddings across patient timepoints, and evaluates representation quality under high-dimensional volumetric constraints.
+## Files
 
-## System Overview
+| File | Purpose |
+|---|---|
+| `model.py` | Shared 3D CNN encoder + projection head (`ClinImCL`, `Encoder`, `Block`, `IMG`) |
+| `model.ipynb` | Training loop (Colab/GPU, GCS-backed data and checkpoints) |
+| `preprocess.py` | MONAI pipeline: NIfTI to 96^3 `.pt` tensors |
+| `visualize.py` | Embedding evaluation: PCA, UMAP, cosine stability, linear probe |
+| `download.sh` | OASIS-3 MRI downloader (NITRC auth, parallel via tmux) |
+| `Makefile` | `make all` validates figures; `make clean` removes caches, cookies, CSVs, and `visualizations/` |
+| `requirements.txt` | Python dependencies (PyTorch, MONAI, sklearn, umap-learn, gcsfs) |
+| `figures/` | 8 committed result PNGs (reference outputs from training runs) |
 
-ClinImCL operates as a GPU-accelerated ML pipeline:
+## Entry Points
 
-- Data processing — preprocesses longitudinal MRI scans into model-ready tensors
-- Training — learns representations using a contrastive 3D CNN encoder
-- Embedding generation — produces latent representations across timepoints
-- Evaluation — analyzes embedding quality using downstream metrics and projections
+| Command | Description |
+|---|---|
+| `model.ipynb` (Colab) | Train encoder on GCS-hosted preprocessed volumes |
+| `python preprocess.py --data_dir /data/OASIS3 --out_dir /data/OASIS3/preprocessed` | Preprocess raw NIfTI scans |
+| `python visualize.py --mode gcs --gcs_bucket <path> --epoch 20` | Evaluate embeddings from GCS |
+| `python visualize.py --mode local --ckpt <path> --data_dir <path>` | Evaluate embeddings from local .pt files |
+| `bash download.sh` | Download OASIS-3 scans (requires `NITRC_USER`, `NITRC_PASS`) |
 
-The system is designed for scalable training on high-dimensional volumetric data while managing memory, batching, and temporal alignment constraints.
+## Verification
+
+```bash
+make all          # confirms all 8 expected figures exist
+make clean        # removes caches, cookies, generated CSVs, visualizations/
+python -c "from model import ClinImCL, IMG; import torch; m=ClinImCL(); z,h=m(torch.randn(1,1,IMG,IMG,IMG)); assert z.shape==(1,128) and h.shape==(1,256)"
+```
 
 ## Architecture
 
-```text
-MRI Data (OASIS-3)
-        ↓
-Preprocessing Pipeline
-        ↓
-3D CNN Encoder (PyTorch)
-        ↓
-Contrastive Learning Objective
-        ↓
-Embedding Space
-        ↓
-Evaluation / Visualization
+```mermaid
+graph TD
+    A[OASIS-3 NIfTI scans] -->|download.sh| B[Raw MRI volumes]
+    B -->|preprocess.py| C[96^3 .pt tensors]
+    C -->|GCS upload| D[gs://clinimcl-data/OASIS3/preprocessed/]
+    D -->|model.ipynb| E[ClinImCL Encoder]
+    E -->|InfoNCE contrastive loss| F[Trained checkpoint .pth]
+    F -->|visualize.py| G[PCA / UMAP / Linear Probe]
+    G --> H[figures/]
+
+    subgraph model.py
+        E1[Block: Conv3d + BN + ReLU] --> E2[Encoder: 4x Block + MaxPool3d + AdaptiveAvgPool]
+        E2 --> E3[Projection head: Linear + ReLU + Linear + L2 norm]
+    end
 ```
 
-## System Constraints
+## Data and Training
 
-- High memory requirements for 3D MRI volumes during GPU training
-- Limited batch sizes due to volumetric data dimensionality
-- Temporal alignment challenges across longitudinal scans
-- Preprocessing overhead for large-scale medical imaging datasets
-
-## Key Properties
-
-- GPU-accelerated 3D CNN training (PyTorch)
-- Longitudinal representation learning across time-series MRI data
-- Contrastive learning framework for embedding construction
-- End-to-end pipeline from preprocessing to evaluation
-- Designed for medical imaging workflows and structured datasets
-
-## Why This Matters
-
-Longitudinal medical imaging data presents challenges in capturing temporal structure and variability across scans. ClinImCL explores how contrastive learning can be applied to learn meaningful representations across time, enabling improved analysis of disease progression and patient trajectories in real-world clinical data pipelines.
-
-## Repository Layout
-
-```
-ClinImCL/
-├── download.sh
-├── preprocess.py
-├── model.ipynb
-├── visualize.py
-├── figures/
-│   ├── epoch1_projections.png
-│   ├── epoch20_projections.png
-│   ├── epoch40_projections.png
-│   ├── linearprobe_cm.png
-│   ├── linearprobe_roc.png
-│   ├── test_projections.png
-│   ├── test_confusion.png
-│   └── oasisbrains.png
-├── Makefile
-├── requirements.txt
-└── README.md
-```
+- Cloud references: project `clinimcl`, data `gs://clinimcl-data/OASIS3/preprocessed/`, checkpoints `gs://clinimcl-data/checkpoints/`
+- OASIS-3 imaging must be obtained under [OASIS](https://www.oasis-brains.org/) terms. This repo does not redistribute scans or patient data.
 
 ## Requirements
 
-- Python 3.11+
-- Install dependencies with `pip install -r requirements.txt`. For **GPU training**, install **PyTorch** for your CUDA version from [pytorch.org](https://pytorch.org/get-started/locally/) first, then install the rest of the requirements (the default `torch` from PyPI is often CPU-only).
-
-## Standard Commands
+Python 3.11+. For GPU training, install PyTorch for your CUDA version from [pytorch.org](https://pytorch.org/get-started/locally/) first, then:
 
 ```bash
-make all
-make clean
+pip install -r requirements.txt
 ```
-
-## Data and Training Notes
-
-- The notebook workflow uses the following cloud references:
-  - token `google_default`
-  - project `clinimcl`
-  - preprocessed path `gs://clinimcl-data/OASIS3/preprocessed/`
-  - checkpoint path `gs://clinimcl-data/checkpoints/`
-- `preprocess.py` handles MRI preprocessing.
-- **Training** is implemented in `model.ipynb` (GPU, GCS-backed tensors and checkpoints). **`visualize.py`** loads checkpoints for embedding plots, stability checks, and linear-probe metrics—it does not run the training loop.
-- **OASIS-3:** Imaging must be obtained and used under [OASIS](https://www.oasis-brains.org/) terms and any applicable agreements. This repository does **not** redistribute scans or patient data; it only documents pipeline code and static figure assets.
-
-## Project Notes
-
-- Figure assets live under `figures/`; keep filenames stable if external docs reference them.
