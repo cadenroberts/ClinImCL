@@ -42,16 +42,31 @@ make clean                             # removes caches, cookies, generated CSVs
 graph TD
     A[OASIS-3 NIfTI scans] -->|download.sh| B[Raw MRI volumes]
     B -->|preprocess.py| C[96^3 .pt tensors]
-    C -->|GCS upload| D[gs://clinimcl-data/OASIS3/preprocessed/]
-    D -->|model.ipynb| E[ClinImCL Encoder]
-    E -->|InfoNCE contrastive loss| F[Trained checkpoint .pth]
-    F -->|visualize.py| G[PCA / UMAP / Linear Probe]
-    G --> H[figures/]
+    C -->|gsutil| D[gs://clinimcl-data/OASIS3/preprocessed/]
+    D --> T
+
+    subgraph T[model.ipynb]
+        M[model.py: ClinImCL] -->|InfoNCE loss| TR[Training loop]
+    end
+
+    TR -->|gsutil| F[gs://clinimcl-data/checkpoints/*.pth]
+    F --> V
+    D --> V
+
+    subgraph V[visualize.py]
+        V1[PCA / UMAP / Linear Probe]
+    end
+
+    V --> H[figures/]
 
     subgraph model.py
         E1[Block: Conv3d + BN + ReLU] --> E2[Encoder: 4x Block + MaxPool3d + AdaptiveAvgPool]
         E2 --> E3[Projection head: Linear + ReLU + Linear + L2 norm]
     end
+
+    model.py -.->|import| T
+    model.py -.->|import IMG| C
+    model.py -.->|import| V
 ```
 
 ## Data and Training
