@@ -17,3 +17,4 @@ visualizations/
 *.pt
 *.pth
 *.npy
+.pytest_cache/

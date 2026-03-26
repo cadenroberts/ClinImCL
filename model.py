@@ -1,3 +1,5 @@
+import random
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -34,3 +36,20 @@ class ClinImCL(nn.Module):
     def forward(self, x):
         h = self.enc(x)
         return F.normalize(self.proj(h), dim=1), h
+
+
+def info_nce(z1, z2, temp=0.07):
+    logits = (z1 @ z2.t()) / temp
+    tgt = torch.arange(z1.size(0), device=z1.device)
+    return 0.5 * (F.cross_entropy(logits, tgt) + F.cross_entropy(logits.t(), tgt))
+
+
+def augment(x):
+    x = x.clone()
+    if random.random() < 0.5:
+        x = torch.flip(x, dims=[random.choice([1, 2, 3])])
+    if random.random() < 0.3:
+        x = x * random.uniform(0.9, 1.1) + random.uniform(-0.1, 0.1)
+    if random.random() < 0.3:
+        x = x + torch.randn_like(x) * random.uniform(0.01, 0.05)
+    return x.clamp(0.0, 1.0)

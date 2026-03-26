@@ -6,14 +6,16 @@ Contrastive learning pipeline for longitudinal 3D MRI representation learning on
 
 | File | Purpose |
 |---|---|
-| `model.py` | Shared 3D CNN encoder + projection head (`ClinImCL`, `Encoder`, `Block`, `IMG`) |
+| `model.py` | Shared 3D CNN encoder + projection head (`ClinImCL`, `Encoder`, `Block`, `IMG`, `info_nce`, `augment`) |
 | `model.ipynb` | Training loop (Colab/GPU, GCS-backed data and checkpoints) |
 | `preprocess.py` | MONAI pipeline: NIfTI to 96^3 `.pt` tensors |
 | `visualize.py` | Embedding evaluation: PCA, UMAP, cosine stability, linear probe |
 | `download.sh` | OASIS-3 MRI downloader (NITRC auth, parallel via tmux) |
 | `Makefile` | `make all` validates figures; `make clean` removes caches, cookies, CSVs, and `visualizations/` |
-| `requirements.txt` | Python dependencies (PyTorch, MONAI, sklearn, umap-learn, gcsfs) |
+| `test_clinimcl.py` | Test suite: model shapes, L2 norm, InfoNCE loss, augmentation, visualization outputs, label loading, GCS mock, local pipeline, preprocessing e2e, download function tests, error paths |
+| `requirements.txt` | Python dependencies (PyTorch, MONAI, nibabel, sklearn, umap-learn, gcsfs, pytest) |
 | `figures/` | 8 committed result PNGs (reference outputs from training runs) |
+| `.github/workflows/test.yml` | CI: runs pytest and figure validation on push/PR to main |
 
 ## Entry Points
 
@@ -24,13 +26,14 @@ Contrastive learning pipeline for longitudinal 3D MRI representation learning on
 | `python visualize.py --mode gcs --gcs_bucket <path> --epoch 20` | Evaluate embeddings from GCS |
 | `python visualize.py --mode local --ckpt <path> --data_dir <path>` | Evaluate embeddings from local .pt files |
 | `bash download.sh` | Download OASIS-3 scans (requires `NITRC_USER`, `NITRC_PASS`) |
+| `python -m pytest test_clinimcl.py -v` | Run test suite (30 tests) |
 
 ## Verification
 
 ```bash
-make all          # confirms all 8 expected figures exist
-make clean        # removes caches, cookies, generated CSVs, visualizations/
-python -c "from model import ClinImCL, IMG; import torch; m=ClinImCL(); z,h=m(torch.randn(1,1,IMG,IMG,IMG)); assert z.shape==(1,128) and h.shape==(1,256)"
+python -m pytest test_clinimcl.py -v   # 30 tests: model, loss, augment, viz, GCS mock, local pipeline, preprocessing e2e, download functions
+make all                               # confirms all 8 expected figures exist
+make clean                             # removes caches, cookies, generated CSVs, visualizations/
 ```
 
 ## Architecture

@@ -16,6 +16,11 @@ from sklearn.metrics.pairwise import cosine_distances
 
 from model import ClinImCL, IMG
 
+
+def _savefig(path, dpi=300):
+    plt.savefig(path, dpi=dpi, bbox_inches='tight')
+    plt.close()
+
 # ── Data loading ───────────────────────────────────────────────────
 
 def load_embeddings_from_gcs(bucket_path, epoch, max_subjects=None):
@@ -83,7 +88,7 @@ def plot_pca_scatter(embeddings, output_path):
     plt.title('PCA Visualization of MRI Embeddings')
     plt.xlabel('PC 1'); plt.ylabel('PC 2')
     plt.grid(True)
-    plt.savefig(output_path, dpi=300, bbox_inches='tight'); plt.close()
+    _savefig(output_path)
     print(f"[save] {output_path}")
 
 def plot_umap_trajectories(feats, labels, subj_days, output_path):
@@ -129,10 +134,27 @@ def plot_umap_trajectories(feats, labels, subj_days, output_path):
     axes[1].grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(output_path, dpi=400, bbox_inches="tight"); plt.close()
+    _savefig(output_path, dpi=400)
     print(f"[save] {output_path}")
 
 # ── Linear probe ───────────────────────────────────────────────────
+
+def _plot_roc(fpr, tpr, auc, path):
+    plt.figure(figsize=(6, 6))
+    plt.plot(fpr, tpr, label=f"AUC = {auc:.3f}")
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlabel("FPR"); plt.ylabel("TPR")
+    plt.title("Linear Probe ROC"); plt.legend(); plt.grid(alpha=0.3)
+    _savefig(path)
+
+
+def _plot_cm(cm, path):
+    plt.figure(figsize=(5, 4))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.xlabel('Predicted'); plt.ylabel('True')
+    plt.title('Linear Probe CM')
+    _savefig(path)
+
 
 def linear_probe_evaluation(X, y, output_dir):
     print("[eval] Linear probe...")
@@ -155,100 +177,85 @@ def linear_probe_evaluation(X, y, output_dir):
         y_prob_all[va] = clf.predict_proba(X[va])[:, 1]
 
     auc = roc_auc_score(y, y_prob_all)
-    cm = confusion_matrix(y, y_pred_all)
     fpr, tpr, _ = roc_curve(y, y_prob_all)
-
-    plt.figure(figsize=(6, 6))
-    plt.plot(fpr, tpr, label=f"AUC = {auc:.3f}")
-    plt.plot([0, 1], [0, 1], 'k--')
-    plt.xlabel("FPR"); plt.ylabel("TPR")
-    plt.title("Linear Probe ROC"); plt.legend(); plt.grid(alpha=0.3)
-    plt.savefig(os.path.join(output_dir, "linearprobe_roc.png"), dpi=300, bbox_inches='tight')
-    plt.close()
-
-    plt.figure(figsize=(5, 4))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-    plt.xlabel('Predicted'); plt.ylabel('True')
-    plt.title('Linear Probe CM')
-    plt.savefig(os.path.join(output_dir, "linearprobe_cm.png"), dpi=300, bbox_inches='tight')
-    plt.close()
+    _plot_roc(fpr, tpr, auc, os.path.join(output_dir, "linearprobe_roc.png"))
+    _plot_cm(confusion_matrix(y, y_pred_all), os.path.join(output_dir, "linearprobe_cm.png"))
 
     print(f"Linear Probe AUC: {auc:.4f}")
     return auc
+
+def _try_linear_probe(X, subjects, labels_csv, output_dir):
+    if not labels_csv:
+        print("[warn] no --labels_csv; skipping linear probe")
+        return
+    y = load_labels(labels_csv, subjects)
+    mask = np.isfinite(y)
+    if mask.sum() < 10:
+        print(f"[warn] only {mask.sum()} matched labels; skipping probe")
+    else:
+        linear_probe_evaluation(X[mask], y[mask], output_dir)
+
+# ── Mode runners ──────────────────────────────────────────────────
+
+def _run_gcs(args):
+    X, subjects = load_embeddings_from_gcs(args.gcs_bucket, args.epoch, args.max_subjects)
+    if len(X) == 0:
+        print("[warn] no embeddings loaded; nothing to plot")
+        return
+    plot_pca_scatter(X, os.path.join(args.output_dir, "pca_visualization.png"))
+    _try_linear_probe(X, subjects, args.labels_csv, args.output_dir)
+
+
+def _run_local(args):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"[env] device={device}")
+
+    from torch.serialization import add_safe_globals
+    try:
+        from monai.data.meta_tensor import MetaTensor
+        from monai.utils.enums import TraceKeys
+        add_safe_globals([MetaTensor, TraceKeys, np.ndarray])
+    except ImportError:
+        add_safe_globals([np.ndarray])
+
+    model = ClinImCL().to(device)
+    ckpt = torch.load(args.ckpt, map_location="cpu", weights_only=True)
+    if "model" in ckpt: ckpt = ckpt["model"]
+    model.load_state_dict(ckpt)
+    model.eval()
+    print(f"[load] {args.ckpt}")
+
+    paths = sorted(glob.glob(os.path.join(args.data_dir, "*.pt")))
+    print(f"[data] {len(paths)} .pt files")
+    feats, labels, subj_days = [], [], []
+
+    with torch.no_grad():
+        for p in paths:
+            vol = torch.load(p, map_location="cpu", weights_only=True)
+            vol = torch.as_tensor(vol, dtype=torch.float32)
+            if vol.ndim == 3: vol = vol.unsqueeze(0)
+            if vol.shape[0] != 1: vol = vol[:1]
+            if vol.shape[1:] != (IMG, IMG, IMG):
+                vol = F.interpolate(vol.unsqueeze(0), size=(IMG, IMG, IMG),
+                                    mode="trilinear", align_corners=False).squeeze(0)
+            _, h = model(vol.unsqueeze(0).to(device))
+            feats.append(h.cpu().numpy().squeeze())
+            m = re.search(r"(OAS3\d+)", os.path.basename(p))
+            labels.append(m.group(1) if m else "unknown")
+            dm = re.search(r"_d(\d+)", os.path.basename(p))
+            subj_days.append(int(dm.group(1)) if dm else 0)
+
+    feat_arr = np.stack(feats)
+    plot_pca_scatter(feat_arr, os.path.join(args.output_dir, "pca_visualization.png"))
+    plot_umap_trajectories(feat_arr, labels, subj_days,
+                           os.path.join(args.output_dir, "umap_trajectories.png"))
+    _try_linear_probe(feat_arr, labels, args.labels_csv, args.output_dir)
 
 # ── Main ───────────────────────────────────────────────────────────
 
 def main(args):
     os.makedirs(args.output_dir, exist_ok=True)
-
-    if args.mode == "gcs":
-        X, subjects = load_embeddings_from_gcs(args.gcs_bucket, args.epoch, args.max_subjects)
-        if len(X) == 0:
-            print("[warn] no embeddings loaded; nothing to plot")
-            return
-        plot_pca_scatter(X, os.path.join(args.output_dir, "pca_visualization.png"))
-
-        if args.labels_csv:
-            y = load_labels(args.labels_csv, subjects)
-            mask = np.isfinite(y)
-            if mask.sum() < 10:
-                print(f"[warn] only {mask.sum()} matched labels; skipping probe")
-            else:
-                linear_probe_evaluation(X[mask], y[mask], args.output_dir)
-        else:
-            print("[warn] no --labels_csv; skipping linear probe")
-
-    elif args.mode == "local":
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"[env] device={device}")
-
-        from torch.serialization import add_safe_globals
-        try:
-            from monai.data.meta_tensor import MetaTensor
-            from monai.utils.enums import TraceKeys
-            add_safe_globals([MetaTensor, TraceKeys, np.ndarray])
-        except ImportError:
-            add_safe_globals([np.ndarray])
-
-        model = ClinImCL().to(device)
-        ckpt = torch.load(args.ckpt, map_location="cpu", weights_only=True)
-        if "model" in ckpt: ckpt = ckpt["model"]
-        model.load_state_dict(ckpt)
-        model.eval()
-        print(f"[load] {args.ckpt}")
-
-        paths = sorted(glob.glob(os.path.join(args.data_dir, "*.pt")))
-        print(f"[data] {len(paths)} .pt files")
-        feats, labels, subj_days = [], [], []
-
-        with torch.no_grad():
-            for p in paths:
-                vol = torch.load(p, map_location="cpu", weights_only=True)
-                vol = torch.as_tensor(vol, dtype=torch.float32)
-                if vol.ndim == 3: vol = vol.unsqueeze(0)
-                if vol.shape[0] != 1: vol = vol[:1]
-                if vol.shape[1:] != (IMG, IMG, IMG):
-                    vol = F.interpolate(vol.unsqueeze(0), size=(IMG, IMG, IMG),
-                                        mode="trilinear", align_corners=False).squeeze(0)
-                _, h = model(vol.unsqueeze(0).to(device))
-                feats.append(h.cpu().numpy().squeeze())
-                m = re.search(r"(OAS3\d+)", os.path.basename(p))
-                labels.append(m.group(1) if m else "unknown")
-                dm = re.search(r"_d(\d+)", os.path.basename(p))
-                subj_days.append(int(dm.group(1)) if dm else 0)
-
-        feat_arr = np.stack(feats)
-        plot_pca_scatter(feat_arr, os.path.join(args.output_dir, "pca_visualization.png"))
-        plot_umap_trajectories(feat_arr, labels, subj_days,
-                               os.path.join(args.output_dir, "umap_trajectories.png"))
-
-        if args.labels_csv:
-            y = load_labels(args.labels_csv, labels)
-            mask = np.isfinite(y)
-            if mask.sum() < 10:
-                print(f"[warn] only {mask.sum()} matched labels; skipping probe")
-            else:
-                linear_probe_evaluation(feat_arr[mask], y[mask], args.output_dir)
+    {"gcs": _run_gcs, "local": _run_local}[args.mode](args)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

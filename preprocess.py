@@ -79,7 +79,7 @@ def main():
         if vol.shape != expected:
             print(f"[warn] {tag}: unexpected shape {tuple(vol.shape)}, expected {expected}")
         try:
-            torch.save(vol, os.path.join(args.out_dir, f"{tag}.pt"))
+            torch.save(vol.as_subclass(torch.Tensor), os.path.join(args.out_dir, f"{tag}.pt"))
             saved += 1
         except Exception as e:
             print(f"[error] {tag}: {e}")
